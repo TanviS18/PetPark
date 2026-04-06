@@ -25,9 +25,7 @@ import {
 import { 
   onAuthStateChanged, 
   User, 
-  GoogleAuthProvider, 
-  signInWithPopup,
-  signOut
+  signInAnonymously
 } from 'firebase/auth';
 import { Plus } from 'lucide-react';
 
@@ -44,9 +42,23 @@ export default function App() {
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const petsMapRef = useRef<Map<string, Pet>>(new Map());
 
+  const [authError, setAuthError] = useState<string | null>(null);
+
   // Initialize Firebase Auth
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (u) => {
+      if (!u) {
+        signInAnonymously(auth).catch(err => {
+          console.error("Anonymous Auth error:", err);
+          if (err.code === 'auth/admin-restricted-operation') {
+            setAuthError("Anonymous Auth is disabled in your Firebase Console.");
+          } else {
+            setAuthError(err.message);
+          }
+        });
+      } else {
+        setAuthError(null);
+      }
       setUser(u);
       setIsAuthReady(true);
     });
@@ -55,7 +67,7 @@ export default function App() {
     const testConnection = async () => {
       try {
         await getDocFromServer(doc(db, 'test', 'connection'));
-      } catch (error) {
+      } catch (error: any) {
         if (error instanceof Error && error.message.includes('the client is offline')) {
           console.error("Please check your Firebase configuration. The client is offline.");
         }
@@ -65,23 +77,6 @@ export default function App() {
 
     return () => unsubscribe();
   }, []);
-
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err) {
-      console.error("Auth error:", err);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (err) {
-      console.error("Logout error:", err);
-    }
-  };
 
   // Sync pets from Firestore
   useEffect(() => {
@@ -192,38 +187,39 @@ export default function App() {
             </div>
 
             {/* Content - Right Side */}
-            <div className="absolute top-1/2 right-12 -translate-y-1/2 z-10 flex flex-col items-end text-right max-w-md gap-4">
-              {!user ? (
-                <button 
-                  onClick={handleLogin}
-                  className="bg-white hover:bg-gray-50 text-gray-800 text-xl font-bold px-8 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-2 border-gray-200 flex items-center gap-3"
-                >
-                  <img src="https://www.gstatic.com/firebase/anonymous-scan.png" alt="Google" className="w-6 h-6 hidden" />
-                  <svg viewBox="0 0 24 24" width="24" height="24" xmlns="http://www.w3.org/2000/svg"><g transform="matrix(1, 0, 0, 1, 0, 0)"><path d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 4.95,16.25 4.95,12C4.95,7.75 8.36,4.73 12.19,4.73C15.19,4.73 17.05,6.11 18.1,7.18L20.14,5.14C18.41,3.48 15.65,2 12.19,2C6.51,2 2,6.51 2,12C2,17.49 6.51,22 12.19,22C17.47,22 21.56,18.49 21.56,12.11C21.56,11.72 21.49,11.4 21.35,11.1Z" fill="#4285F4"></path></g></svg>
-                  Sign in with Google
-                </button>
-              ) : (
-                <div className="flex flex-col items-end gap-4">
-                  <div className="flex items-center gap-3 bg-white/80 backdrop-blur-sm p-2 rounded-full border border-white/50 shadow-sm">
-                    <img src={user.photoURL || ''} alt="" className="w-10 h-10 rounded-full border-2 border-green-500" />
-                    <div className="text-left pr-4">
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Logged in as</p>
-                      <p className="text-sm font-black text-gray-800">{user.displayName || 'Pet Lover'}</p>
-                    </div>
+            <div className="absolute top-1/2 right-12 -translate-y-1/2 z-10 flex flex-col items-end text-right max-w-md">
+              {authError ? (
+                <div className="bg-red-50 border-2 border-red-200 p-6 rounded-3xl shadow-xl text-left max-w-sm">
+                  <h3 className="text-red-800 font-black text-xl mb-2">Auth Error</h3>
+                  <p className="text-red-600 text-sm font-bold mb-4">
+                    {authError}
+                  </p>
+                  <div className="bg-white p-3 rounded-xl border border-red-100 text-xs font-mono text-red-500 mb-4">
+                    Firebase: Error (auth/admin-restricted-operation)
                   </div>
+                  <p className="text-gray-600 text-xs mb-4">
+                    To fix this, please go to your <a href="https://console.firebase.google.com/project/gen-lang-client-0946362208/authentication/providers" target="_blank" className="text-sky-500 underline font-bold">Firebase Console</a> and:
+                  </p>
+                  <ol className="text-xs text-gray-600 list-decimal pl-4 space-y-1 mb-4">
+                    <li>Go to <strong>Authentication &gt; Sign-in method</strong></li>
+                    <li>Click <strong>Add new provider</strong></li>
+                    <li>Select <strong>Anonymous</strong> and click <strong>Enable</strong></li>
+                    <li>Click <strong>Save</strong></li>
+                  </ol>
                   <button 
-                    onClick={() => setIsDrawingOpen(true)}
-                    className="bg-green-500 hover:bg-green-600 text-white text-2xl font-extrabold px-8 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-4 border-white/50"
+                    onClick={() => window.location.reload()}
+                    className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-2 rounded-full transition-colors"
                   >
-                    Draw My Pet →
-                  </button>
-                  <button 
-                    onClick={handleLogout}
-                    className="text-gray-500 hover:text-gray-700 text-sm font-bold underline underline-offset-4"
-                  >
-                    Sign Out
+                    I've enabled it, Refresh
                   </button>
                 </div>
+              ) : (
+                <button 
+                  onClick={() => setIsDrawingOpen(true)}
+                  className="bg-green-500 hover:bg-green-600 text-white text-2xl font-extrabold px-8 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-4 border-white/50"
+                >
+                  Draw My Pet →
+                </button>
               )}
             </div>
           </motion.div>
