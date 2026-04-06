@@ -1,0 +1,24 @@
+{
+  "entities": {
+    "Pet": {
+      "title": "Pet",
+      "description": "A pet created by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "drawing": { "type": "string", "description": "Base64 encoded drawing" },
+        "isUser": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "type", "drawing", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/pets": {
+      "schema": "Pet",
+      "description": "Collection of all pets in the park"
+    }
+  }
+}

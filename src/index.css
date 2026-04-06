@@ -1,0 +1,78 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: 'Nunito', sans-serif;
+  overflow: hidden;
+  background: #87CEEB;
+}
+
+.pet-tag {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.pet-bubble {
+  animation: bubble-float 2s ease-in-out infinite;
+}
+
+@keyframes bubble-float {
+  0%, 100% { transform: translateY(0) translateX(-50%); }
+  50% { transform: translateY(-5px) translateX(-50%); }
+}
+
+.heart-animation {
+  animation: heart-pop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes heart-pop {
+  0% { transform: scale(0) rotate(-15deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(10deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.pet-tag {
+  position: absolute;
+  transform-origin: center bottom;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  translate: -50% 0;
+  transition: opacity 0.3s;
+}
+
+.pet-tag[data-bubble]::after {
+  content: attr(data-bubble);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: white;
+  border: 1.5px solid #eee;
+  border-radius: 12px;
+  padding: 3px 8px;
+  font-size: 12px;
+  margin-bottom: 4px;
+  animation: popIn 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+@keyframes popIn {
+  from { transform: translateX(-50%) scale(0.5); opacity: 0; }
+  to { transform: translateX(-50%) scale(1); opacity: 1; }
+}
+
+canvas {
+  display: block;
+}

@@ -1,0 +1,5 @@
+{
+  "name": "PetPark",
+  "description": "Finger-draw your pet using hand gestures and watch them play in a living animated park.",
+  "requestFramePermissions": ["camera"]
+}

@@ -1,0 +1,56 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: pets
+    // Document ID: auto-generated
+    // Fields:
+    //   - name: string (required, 1-50 chars)
+    //   - type: string (required, enum)
+    //   - drawing: string (required, base64)
+    //   - uid: string (required, matches auth.uid)
+    //   - createdAt: timestamp (required, server-assigned)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "shiyekartanvi@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidPet(data) {
+      let validTypes = ['dog', 'cat', 'bunny', 'hamster', 'bird', 'turtle'];
+      return data.keys().hasAll(['name', 'type', 'drawing', 'uid', 'createdAt']) &&
+             data.keys().hasOnly(['name', 'type', 'drawing', 'uid', 'createdAt']) &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 50 &&
+             data.type in validTypes &&
+             data.drawing is string && data.drawing.size() < 1048576 && // Max 1MB for base64
+             data.uid == request.auth.uid &&
+             data.createdAt == request.time;
+    }
+
+    match /pets/{petId} {
+      allow read: if true;
+      allow create: if isAuthenticated();
+      allow update, delete: if isAuthenticated() && (request.auth.uid == resource.data.uid || request.auth.token.email == "shiyekartanvi@gmail.com");
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+  }
+}
