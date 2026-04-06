@@ -7,22 +7,12 @@ export interface PetBubble {
   timer: number;
 }
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Stroke {
-  points: Point[];
-  color: string;
-  size: number;
-}
-
 export class Pet {
   id: string;
   name: string;
   type: string;
-  strokes: Stroke[] | null;
+  drawing: string | null; // Data URL for user pet
+  image: HTMLImageElement | null = null;
   isUser: boolean;
   
   x: number;
@@ -40,12 +30,10 @@ export class Pet {
   friend: Pet | null = null;
   bubble: PetBubble | null = null;
 
-  private cachedCanvas: HTMLCanvasElement | null = null;
-
-  constructor({ name, type, strokes, isUser, canvasWidth, canvasHeight }: { 
+  constructor({ name, type, drawing, isUser, canvasWidth, canvasHeight }: { 
     name: string, 
     type: string, 
-    strokes?: Stroke[] | string | null, 
+    drawing?: string | null, 
     isUser: boolean,
     canvasWidth: number,
     canvasHeight: number
@@ -53,20 +41,11 @@ export class Pet {
     this.id = Math.random().toString(36).substring(2, 9);
     this.name = name;
     this.type = type;
+    this.drawing = drawing || null;
     this.isUser = isUser;
 
-    if (typeof strokes === 'string') {
-      try {
-        this.strokes = JSON.parse(strokes);
-      } catch (e) {
-        console.error("Failed to parse strokes", e);
-        this.strokes = null;
-      }
-    } else {
-      this.strokes = strokes || null;
-    }
-
     // Position - random start on the circular island area
+    // Center is roughly (width/2, height/2)
     const centerX = canvasWidth / 2;
     const centerY = canvasHeight / 2;
     const radius = Math.min(canvasWidth, canvasHeight) * 0.3;
@@ -83,75 +62,11 @@ export class Pet {
 
     this.color = PET_PALETTE[Math.floor(Math.random() * PET_PALETTE.length)];
     this.size = isUser ? 60 : 30 + Math.random() * 20;
-  }
 
-  render(ctx: CanvasRenderingContext2D, x: number, y: number, size: number, facing: number) {
-    if (!this.strokes) return;
-
-    if (!this.cachedCanvas) {
-      this.cachedCanvas = document.createElement('canvas');
-      this.cachedCanvas.width = 800;
-      this.cachedCanvas.height = 600;
-      const cCtx = this.cachedCanvas.getContext('2d');
-      if (cCtx) {
-        this.strokes.forEach(stroke => {
-          cCtx.lineJoin = 'round';
-          cCtx.lineCap = 'round';
-          cCtx.strokeStyle = stroke.color;
-          cCtx.lineWidth = stroke.size;
-          cCtx.beginPath();
-          if (stroke.points.length > 0) {
-            cCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
-            for (let i = 1; i < stroke.points.length; i++) {
-              cCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
-            }
-            cCtx.stroke();
-          }
-        });
-      }
+    if (this.drawing) {
+      this.image = new Image();
+      this.image.src = this.drawing;
     }
-
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(facing, 1);
-    
-    // The original drawing was on 800x600, but we captured 400x400 from (200, 100)
-    // To keep it simple, let's just render the relevant part
-    const sourceX = 200;
-    const sourceY = 100;
-    const sourceSize = 400;
-    
-    ctx.drawImage(
-      this.cachedCanvas, 
-      sourceX, sourceY, sourceSize, sourceSize, 
-      -size / 2, -size / 2, size, size
-    );
-    ctx.restore();
-  }
-
-  toDataURL(): string {
-    if (!this.strokes) return '';
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 400;
-    tempCanvas.height = 400;
-    const tCtx = tempCanvas.getContext('2d');
-    if (tCtx) {
-      this.strokes.forEach(stroke => {
-        tCtx.lineJoin = 'round';
-        tCtx.lineCap = 'round';
-        tCtx.strokeStyle = stroke.color;
-        tCtx.lineWidth = stroke.size;
-        tCtx.beginPath();
-        if (stroke.points.length > 0) {
-          tCtx.moveTo(stroke.points[0].x - 200, stroke.points[0].y - 100);
-          for (let i = 1; i < stroke.points.length; i++) {
-            tCtx.lineTo(stroke.points[i].x - 200, stroke.points[i].y - 100);
-          }
-          tCtx.stroke();
-        }
-      });
-    }
-    return tempCanvas.toDataURL();
   }
 
   update(dt: number, allPets: Pet[], canvasWidth: number, canvasHeight: number) {

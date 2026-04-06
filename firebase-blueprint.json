@@ -8,7 +8,7 @@
         "id": { "type": "string" },
         "name": { "type": "string" },
         "type": { "type": "string" },
-        "drawing": { "type": "string", "description": "JSON string of drawing strokes for consistent rendering" },
+        "drawing": { "type": "string", "description": "Base64 encoded drawing" },
         "isUser": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

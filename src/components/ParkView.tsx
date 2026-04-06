@@ -95,23 +95,13 @@ export const ParkView: React.FC<ParkViewProps> = ({ pets, onShowGallery, isNight
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
 
-    // High-DPI / Sharp Scaling logic
-    const dpr = window.devicePixelRatio || 1;
-    const displayWidth = window.innerWidth;
-    const displayHeight = window.innerHeight;
-
-    if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
-      canvas.width = displayWidth * dpr;
-      canvas.height = displayHeight * dpr;
+    // Update dimensions
+    if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
 
-    ctx.save();
-    // Scale the context so that 800x600 logical units always fill the screen
-    ctx.scale((displayWidth * dpr) / 800, (displayHeight * dpr) / 600);
-    
-    draw(ctx, dt);
-    ctx.restore();
-
+    draw(ctx, canvas, dt);
     requestRef.current = requestAnimationFrame(animate);
   };
 
@@ -122,9 +112,9 @@ export const ParkView: React.FC<ParkViewProps> = ({ pets, onShowGallery, isNight
     };
   }, [pets, isNight]);
 
-  const draw = (ctx: CanvasRenderingContext2D, dt: number) => {
-    const w = 800; // Logical width
-    const h = 600; // Logical height
+  const draw = (ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, dt: number) => {
+    const w = canvas.width;
+    const h = canvas.height;
 
     // 1. Sky
     const skyGradient = ctx.createLinearGradient(0, 0, 0, h);
@@ -742,27 +732,20 @@ export const ParkView: React.FC<ParkViewProps> = ({ pets, onShowGallery, isNight
   };
 
   const drawUserPet = (ctx: CanvasRenderingContext2D, pet: Pet) => {
-    if (!pet.strokes) return;
-    
+    if (!pet.image) return;
     ctx.save();
+    ctx.translate(pet.x, pet.y);
+    ctx.scale(pet.facing, 1);
+    
     if (pet.state === 'walking' || pet.state === 'running') {
-      // Add a little bounce/wobble
-      const wobble = Math.sin(Date.now() * 0.008) * 0.06;
-      ctx.translate(pet.x, pet.y);
-      ctx.rotate(wobble);
-      ctx.translate(-pet.x, -pet.y);
+      ctx.rotate(Math.sin(Date.now() * 0.008) * 0.06);
     }
 
     // Shadow
-    ctx.save();
-    ctx.translate(pet.x, pet.y);
     ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.beginPath(); 
-    ctx.ellipse(0, pet.size / 2 + 4, pet.size / 2, 8, 0, 0, Math.PI * 2); 
-    ctx.fill();
-    ctx.restore();
+    ctx.beginPath(); ctx.ellipse(0, pet.size / 2 + 4, pet.size / 2, 8, 0, 0, Math.PI * 2); ctx.fill();
 
-    pet.render(ctx, pet.x, pet.y, pet.size, pet.facing);
+    ctx.drawImage(pet.image, -pet.size / 2, -pet.size / 2, pet.size, pet.size);
     ctx.restore();
   };
 
