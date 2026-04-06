@@ -403,6 +403,7 @@ export const ParkView: React.FC<ParkViewProps> = ({ pets, onShowGallery, isNight
       } else {
         drawRandomPet(ctx, pet);
       }
+      drawPetName(ctx, pet);
     });
 
     // 4. Interactions (Hearts)
@@ -748,6 +749,62 @@ export const ParkView: React.FC<ParkViewProps> = ({ pets, onShowGallery, isNight
     ctx.restore();
   };
 
+  const drawPetName = (ctx: CanvasRenderingContext2D, pet: Pet) => {
+    ctx.save();
+    ctx.translate(pet.x, pet.y + pet.size / 2 + 15);
+    
+    // Name Tag Background
+    const padding = 8;
+    ctx.font = 'bold 12px Nunito, sans-serif';
+    const textWidth = ctx.measureText(pet.name).width;
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.beginPath();
+    // @ts-ignore
+    if (ctx.roundRect) {
+      // @ts-ignore
+      ctx.roundRect(-textWidth / 2 - padding, -10, textWidth + padding * 2, 20, 10);
+    } else {
+      ctx.rect(-textWidth / 2 - padding, -10, textWidth + padding * 2, 20);
+    }
+    ctx.fill();
+    
+    // Name Text
+    ctx.fillStyle = '#333';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(pet.name, 0, 0);
+
+    // Bubble if exists
+    if (pet.bubble) {
+      ctx.translate(0, -pet.size - 35);
+      const bubbleText = pet.bubble.text;
+      const bPadding = 10;
+      ctx.font = '14px Nunito, sans-serif';
+      const bWidth = ctx.measureText(bubbleText).width;
+      
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      // @ts-ignore
+      if (ctx.roundRect) {
+        // @ts-ignore
+        ctx.roundRect(-bWidth / 2 - bPadding, -12, bWidth + bPadding * 2, 24, 12);
+      } else {
+        ctx.rect(-bWidth / 2 - bPadding, -12, bWidth + bPadding * 2, 24);
+      }
+      ctx.fill();
+      
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#333';
+      ctx.fillText(bubbleText, 0, 0);
+    }
+    
+    ctx.restore();
+  };
+
   const takeScreenshot = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -761,23 +818,6 @@ export const ParkView: React.FC<ParkViewProps> = ({ pets, onShowGallery, isNight
     <div className="relative w-full h-full overflow-hidden">
       <canvas ref={canvasRef} className="w-full h-full" />
       
-      {/* UI Overlay for Name Tags */}
-      <div ref={uiLayerRef} className="absolute inset-0 pointer-events-none">
-        {pets.map(pet => (
-          <div 
-            key={pet.id}
-            className="pet-tag"
-            style={{ 
-              transform: `translate(${pet.x}px, ${pet.y + pet.size/2 + 10}px)`,
-              opacity: pet.state === 'sleeping' ? 0.6 : 1
-            }}
-            data-bubble={pet.bubble?.text}
-          >
-            {pet.name}
-          </div>
-        ))}
-      </div>
-
       {/* Controls */}
       <div className="absolute bottom-6 right-6 flex flex-col sm:flex-row gap-3 z-50">
         <button 

@@ -108,6 +108,18 @@ export default function App() {
         }
       });
 
+      // Add a sample pet if the park is empty
+      if (newPets.length === 0) {
+        const samplePet = new Pet({
+          name: "Buddy",
+          type: "dog",
+          isUser: false,
+          canvasWidth: window.innerWidth,
+          canvasHeight: window.innerHeight
+        });
+        newPets.push(samplePet);
+      }
+
       // Clean up old pets
       const snapshotIds = new Set(snapshot.docs.map(d => d.id));
       for (const id of currentPetsMap.keys()) {
