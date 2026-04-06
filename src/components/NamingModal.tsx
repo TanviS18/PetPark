@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PET_TYPES } from '../constants';
+import { strokesToDataURL } from '../lib/drawingUtils';
 
 interface NamingModalProps {
   drawing: string;
@@ -11,6 +12,8 @@ export function NamingModal({ drawing, onRelease }: NamingModalProps) {
   const [name, setName] = useState('');
   const [type, setType] = useState('dog');
 
+  const dataUrl = useMemo(() => strokesToDataURL(drawing), [drawing]);
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-md p-4">
       <motion.div 
@@ -19,7 +22,11 @@ export function NamingModal({ drawing, onRelease }: NamingModalProps) {
         className="bg-white rounded-[3rem] p-10 w-full max-w-md shadow-2xl text-center"
       >
         <div className="w-48 h-48 mx-auto mb-8 bg-gray-50 rounded-[2rem] border-4 border-dashed border-green-200 flex items-center justify-center overflow-hidden">
-          <img src={drawing} alt="Your pet" className="w-full h-full object-contain p-4" />
+          {dataUrl ? (
+            <img src={dataUrl} alt="Your pet" className="w-full h-full object-contain p-4" />
+          ) : (
+            <div className="text-4xl">🐾</div>
+          )}
         </div>
 
         <h2 className="text-3xl font-extrabold text-gray-800 mb-6">Name Your New Friend!</h2>

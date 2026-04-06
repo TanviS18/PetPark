@@ -27,7 +27,7 @@ import {
   User, 
   signInAnonymously
 } from 'firebase/auth';
-import { Plus } from 'lucide-react';
+import { Plus, Download, Upload } from 'lucide-react';
 
 type Screen = 'welcome' | 'park';
 
@@ -43,6 +43,40 @@ export default function App() {
   const petsMapRef = useRef<Map<string, Pet>>(new Map());
 
   const [authError, setAuthError] = useState<string | null>(null);
+
+  // Load from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('petpark_user_data');
+    if (savedData) {
+      try {
+        const parsed = JSON.parse(savedData);
+        if (Array.isArray(parsed)) {
+          const loadedPets = parsed.map(p => new Pet({
+            name: p.name,
+            type: p.type,
+            strokes: p.drawing,
+            isUser: true,
+            canvasWidth: 800,
+            canvasHeight: 600
+          }));
+          setPets(loadedPets);
+          loadedPets.forEach(p => petsMapRef.current.set(p.id, p));
+        }
+      } catch (e) {
+        console.error("Failed to load from localStorage", e);
+      }
+    }
+  }, []);
+
+  // Save to localStorage whenever pets change
+  useEffect(() => {
+    const dataToSave = pets.map(p => ({
+      name: p.name,
+      type: p.type,
+      drawing: p.strokes ? JSON.stringify(p.strokes) : null
+    }));
+    localStorage.setItem('petpark_user_data', JSON.stringify(dataToSave));
+  }, [pets]);
 
   // Initialize Firebase Auth
   useEffect(() => {
@@ -78,56 +112,39 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Sync pets from Firestore
+  // Sync pets from Firestore (Optional, keeping as backup but prioritizing local)
   useEffect(() => {
     if (!isAuthReady) return;
 
     const q = query(collection(db, 'pets'), orderBy('createdAt', 'desc'), limit(50));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const currentPetsMap = petsMapRef.current;
-      const newPets: Pet[] = [];
+      const newPets: Pet[] = [...pets]; // Start with local pets
 
       snapshot.docs.forEach(doc => {
         const data = doc.data();
         const id = doc.id;
 
-        if (currentPetsMap.has(id)) {
-          newPets.push(currentPetsMap.get(id)!);
-        } else {
+        if (!currentPetsMap.has(id)) {
           const pet = new Pet({
             name: data.name,
             type: data.type,
-            drawing: data.drawing,
+            strokes: data.drawing,
             isUser: data.uid === auth.currentUser?.uid,
-            canvasWidth: window.innerWidth,
-            canvasHeight: window.innerHeight
+            canvasWidth: 800,
+            canvasHeight: 600
           });
-          pet.id = id; // Use Firestore ID
+          pet.id = id;
           currentPetsMap.set(id, pet);
           newPets.push(pet);
         }
       });
 
-      // Add a sample pet if the park is empty
-      if (newPets.length === 0) {
-        const samplePet = new Pet({
-          name: "Buddy",
-          type: "dog",
-          isUser: false,
-          canvasWidth: window.innerWidth,
-          canvasHeight: window.innerHeight
-        });
-        newPets.push(samplePet);
-      }
-
-      // Clean up old pets
+      // Clean up old pets from map if they were deleted from Firestore
       const snapshotIds = new Set(snapshot.docs.map(d => d.id));
-      for (const id of currentPetsMap.keys()) {
-        if (!snapshotIds.has(id)) {
-          currentPetsMap.delete(id);
-        }
-      }
-
+      // We only clean up if they were Firestore pets (have Firestore-like IDs)
+      // For now, let's just keep it simple and not over-sync
+      
       setPets(newPets);
     }, (error) => {
       console.error('Firestore Error: ', JSON.stringify({
@@ -156,7 +173,7 @@ export default function App() {
       await addDoc(collection(db, 'pets'), {
         name,
         type,
-        drawing: namingDrawing,
+        drawing: namingDrawing, // This is now a JSON string of strokes
         uid: auth.currentUser.uid,
         createdAt: serverTimestamp()
       });
@@ -175,8 +192,38 @@ export default function App() {
     }
   };
 
+  const exportPets = async () => {
+    const savedData = localStorage.getItem('petpark_user_data');
+    if (savedData) {
+      try {
+        await navigator.clipboard.writeText(savedData);
+        alert("Zoo exported to clipboard!");
+      } catch (err) {
+        console.error("Failed to copy", err);
+        alert("Failed to export to clipboard.");
+      }
+    }
+  };
+
+  const importPets = async () => {
+    const input = prompt("Paste your Zoo JSON string here:");
+    if (!input) return;
+    try {
+      const data = JSON.parse(input);
+      if (Array.isArray(data)) {
+        localStorage.setItem('petpark_user_data', input);
+        window.location.reload(); // Reload to apply changes
+      } else {
+        alert("Invalid Zoo format.");
+      }
+    } catch (err) {
+      console.error("Import error:", err);
+      alert("Failed to import. Invalid JSON.");
+    }
+  };
+
   return (
-    <div className="w-full h-screen overflow-hidden bg-blue-400">
+    <div className="w-full h-screen overflow-hidden">
       <AnimatePresence mode="wait">
         {screen === 'welcome' && (
           <motion.div 
@@ -199,7 +246,7 @@ export default function App() {
             </div>
 
             {/* Content - Right Side */}
-            <div className="absolute top-1/2 right-12 -translate-y-1/2 z-10 flex flex-col items-end text-right max-w-md">
+            <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10 flex flex-col items-end text-right max-w-md">
               {authError ? (
                 <div className="bg-red-50 border-2 border-red-200 p-6 rounded-3xl shadow-xl text-left max-w-sm">
                   <h3 className="text-red-800 font-black text-xl mb-2">Auth Error</h3>
@@ -226,12 +273,17 @@ export default function App() {
                   </button>
                 </div>
               ) : (
-                <button 
-                  onClick={() => setIsDrawingOpen(true)}
-                  className="bg-green-500 hover:bg-green-600 text-white text-2xl font-extrabold px-8 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-4 border-white/50"
-                >
-                  Draw My Pet →
-                </button>
+                <div className="flex flex-col gap-4 items-end mr-4">
+                  <button 
+                    onClick={() => setIsDrawingOpen(true)}
+                    className="bg-green-500 hover:bg-green-600 text-white text-2xl font-extrabold px-8 py-4 rounded-full shadow-2xl transition-all hover:scale-105 active:scale-95 border-4 border-white/50"
+                  >
+                    Draw My Pet →
+                  </button>
+                  <div className="text-green-800 font-bold text-sm bg-white/50 px-4 py-2 rounded-full backdrop-blur-sm">
+                    {pets.length} Pets in the Park
+                  </div>
+                </div>
               )}
             </div>
           </motion.div>
@@ -283,12 +335,29 @@ export default function App() {
                 <div className="h-6 w-1 bg-green-200 rounded-full" />
                 <h2 className="text-2xl font-black text-green-800">Gallery</h2>
               </div>
-              <button 
-                onClick={() => setIsGalleryOpen(false)}
-                className="p-2 hover:bg-green-100 rounded-full transition-colors"
-              >
-                <Plus className="rotate-45 text-green-800" size={32} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={exportPets}
+                  className="flex items-center gap-2 bg-white hover:bg-gray-50 text-green-700 px-4 py-2 rounded-xl font-bold text-sm border-2 border-green-100 transition-all"
+                  title="Export Zoo to Clipboard"
+                >
+                  <Download size={18} /> Export My Zoo
+                </button>
+                <button 
+                  onClick={importPets}
+                  className="flex items-center gap-2 bg-white hover:bg-gray-50 text-green-700 px-4 py-2 rounded-xl font-bold text-sm border-2 border-green-100 transition-all"
+                  title="Import Zoo from Clipboard"
+                >
+                  <Upload size={18} /> Import Zoo
+                </button>
+                <div className="w-px h-8 bg-green-200 mx-2" />
+                <button 
+                  onClick={() => setIsGalleryOpen(false)}
+                  className="p-2 hover:bg-green-100 rounded-full transition-colors"
+                >
+                  <Plus className="rotate-45 text-green-800" size={32} />
+                </button>
+              </div>
             </div>
             
             <div className="flex-1 overflow-y-auto p-6">
@@ -296,8 +365,8 @@ export default function App() {
                 {pets.map(pet => (
                   <div key={pet.id} className="bg-gray-50 rounded-2xl p-4 flex flex-col items-center gap-3 border-2 border-transparent hover:border-green-200 transition-all hover:shadow-md">
                     <div className="w-24 h-24 bg-white rounded-xl shadow-inner flex items-center justify-center overflow-hidden">
-                      {pet.image ? (
-                        <img src={pet.image.src} alt={pet.name} className="w-full h-full object-contain" />
+                      {pet.strokes ? (
+                        <img src={pet.toDataURL()} alt={pet.name} className="w-full h-full object-contain" />
                       ) : (
                         <div className="text-4xl">🐾</div>
                       )}

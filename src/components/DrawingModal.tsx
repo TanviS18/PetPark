@@ -319,15 +319,9 @@ export const DrawingModal: React.FC<DrawingModalProps> = ({ isOpen, onClose, onD
   };
 
   const handleDone = () => {
-    // Capture only the bounding box area
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 400;
-    tempCanvas.height = 400;
-    const tCtx = tempCanvas.getContext('2d');
-    if (tCtx && drawCanvasRef.current) {
-      tCtx.drawImage(drawCanvasRef.current, 200, 100, 400, 400, 0, 0, 400, 400);
-      onDone(tempCanvas.toDataURL('image/png'));
-    }
+    if (strokesRef.current.length === 0) return;
+    // Return the strokes as a JSON string for consistency
+    onDone(JSON.stringify(strokesRef.current));
   };
 
   return (
